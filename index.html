@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>赫敏音乐小屋</title>
+    <style>
+        :root {
+            --primary-color: #1565c0;
+            --highlight-color: #64b5f6;
+            --background-color: #e0f7fa;
+            --card-background-color: rgba(255, 255, 255, 0.85);
+            --audio-item-background-color: #bbdefb;
+            --audio-item-hover-background-color: #90caf9;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --notice-bar-color: #ffeb3b;
+            --notice-text-color: #333;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--background-color), #f5f5f5);
+            color: var(--primary-color);
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .notice-bar {
+            background-color: var(--notice-bar-color);
+            color: var(--notice-text-color);
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: var(--card-background-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px var(--shadow-color);
+        }
+
+        h1 {
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .audio-list {
+            list-style-type: none;
+            padding: 0;
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 8px;
+            background-color: #f0f8ff;
+            margin-bottom: 30px;
+        }
+
+        .audio-item {
+            margin: 8px;
+            padding: 12px;
+            border-radius: 8px;
+            background-color: var(--audio-item-background-color);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #1a237e;
+            box-shadow: 0 2px 4px var(--shadow-color);
+        }
+
+        .audio-item:hover {
+            background-color: var(--audio-item-hover-background-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px var(--shadow-color);
+        }
+
+        .audio-item.playing {
+            background-color: var(--highlight-color);
+            color: white;
+            font-weight: bold;
+        }
+
+        .player-container {
+            padding: 15px;
+            background-color: #e3f2fd;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px var(--shadow-color);
+        }
+
+        audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .now-playing {
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .controls button {
+            padding: 10px 15px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .controls button:hover {
+            background-color: var(--highlight-color);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .playing-animation {
+            animation: pulse 1s infinite;
+        }
+    </style>
+</head>
+<body>
+    <!-- 告示栏 -->
+    <div class="notice-bar">
+        <p>解决方法：如果播放失败，请确保音频文件格式为浏览器支持的格式（如 .mp3 或 .ogg），并检查文件是否可访问。</p>
+    </div>
+
+    <div class="container">
+        <h1>赫敏音乐小屋</h1>
+        <div class="audio-list" id="audioList">
+            <!-- 音频列表将通过 JavaScript 动态生成 -->
+        </div>
+        <div class="player-container">
+            <div class="now-playing" id="nowPlaying">未选择歌曲</div>
+            <audio id="audioPlayer" controls></audio>
+            <div class="controls">
+                <button id="prevBtn">上一首</button>
+                <button id="nextBtn">下一首</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let musicList = [
+            { name: "Take Me Hand", url: "https://gitee.com/smth-studio/music/raw/master/Take%20Me%20Hand.WAV" },
+            { name: "Breath", url: "https://gitee.com/smth-studio/music/raw/master/breathe.WAV" },
+            { name: "Duvet", url: "https://gitee.com/smth-studio/music/raw/master/Duvet.WAV" },
+            { name: "赫敏干声（训练RVC模型用）", url: "https://gitee.com/smth-studio/music/raw/master/%E8%B5%AB%E6%95%8F%E9%9F%B3%E9%A2%91%E5%B9%B2%E5%A3%B0.WAV" }
+        ];
+
+        let currentPlayingIndex = -1;
+        const audioPlayer = document.getElementById('audioPlayer');
+        const audioListElement = document.getElementById('audioList');
+        const nowPlayingElement = document.getElementById('nowPlaying');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+
+        function initMusicPlayer() {
+            renderMusicList();
+            audioPlayer.addEventListener('ended', playNext);
+            prevBtn.addEventListener('click', playPrev);
+            nextBtn.addEventListener('click', playNext);
+        }
+
+        function renderMusicList() {
+            audioListElement.innerHTML = '';
+            if (musicList.length === 0) {
+                audioListElement.innerHTML = '<div class="audio-item">没有音乐</div>';
+                return;
+            }
+            musicList.forEach((music, index) => {
+                const listItem = document.createElement('div');
+                listItem.className = 'audio-item' + (index === currentPlayingIndex ? ' playing playing-animation' : '');
+                listItem.textContent = music.name;
+                listItem.addEventListener('click', () => playMusic(index));
+                audioListElement.appendChild(listItem);
+            });
+        }
+
+        function playMusic(index) {
+            if (index >= 0 && index < musicList.length) {
+                const music = musicList[index];
+                currentPlayingIndex = index;
+                nowPlayingElement.textContent = `正在播放: ${music.name}`;
+                audioPlayer.src = music.url;
+                audioPlayer.load();
+                audioPlayer.play().catch(error => alert('播放失败: ' + error.message));
+                renderMusicList();
+            }
+        }
+
+        function playNext() {
+            const nextIndex = (currentPlayingIndex + 1) % musicList.length;
+            playMusic(nextIndex);
+        }
+
+        function playPrev() {
+            const prevIndex = (currentPlayingIndex - 1 + musicList.length) % musicList.length;
+            playMusic(prevIndex);
+        }
+
+        initMusicPlayer();
+    </script>
+</body>
+</html>
